@@ -7,7 +7,6 @@ from reinforcemen_learning_4.dynamic_env import DynamicMazeEnvironment
 from reinforcemen_learning_4.environment import ShortcutEnvironment,BanditEnvironment
 from Helper import smooth,LearningCurvePlot
 
-#https://medium.com/@aiblogtech/what-is-exploration-strategies-in-reinforcement-learning-32677239245e
 def run_repetitions_greedy(n_actions, n_timesteps, n_repetitions, smoothing_window, epsilon=0.1):
     rewards = np.zeros((n_repetitions, n_timesteps))
 
@@ -196,13 +195,11 @@ def plot_learning_curve(curves, labels, xlabel, ylabel, title, save_path):
 
 def experiment_boltzman():
     print('Sarsa normal environment single run 10000 episode')
-    #single_sarsa_dynamic = run_repetitions_sarsa_dynamic(2, 389)
     single_sarsa = run_repetitions_sarsa(10, 1000)
     avg_rewards_single = run_repetitions_boltzman(10, 1000)
-    #avg_rewards_single_dynamic = run_repetitions_boltzman_dynamic(2, 389)
     plot_learning_curve([single_sarsa,avg_rewards_single,],
                         ['E greedy exploration','Boltzman exploration',], 'Episodes',
-                        'Average Cumulative Reward', 'Learning Curve', 'sarsa_boltzman_10.png')
+                        'Average Cumulative Reward', 'Learning Curve', 'sarsa_boltzman.png')
     #plot_learning_curve([avg_rewards_single], ['Boltzman'], 'Episodes',
     #                    'Average Cumulative Reward', 'Learning Curve', 'boltzman.png')
 
@@ -211,21 +208,15 @@ def experiment_thompson():
     n_repetitions = 500
     n_timesteps = 1000
     smoothing_window = 31
-    # Assignment 1: e-greedy
-    epsilons = [0.1]  # 0.1 best
-    #avg_egreedy = []
-    rewards_egreedy = []
+    epsilons = [0.1]# best selected
     reward_plot = LearningCurvePlot(title="Egreedy Policy Curve")
     for epsilon in epsilons:
         smooth_rewards_greedy = run_repetitions_greedy(n_actions, n_timesteps, n_repetitions, smoothing_window, epsilon)
         smooth_rewards_thompson = run_repetitions_thompson(n_actions, n_timesteps, n_repetitions, smoothing_window, epsilon)
-        #reward_plot.add_curve(smooth_rewards, label=f' {epsilon}')
         plot_learning_curve([smooth_rewards_greedy, smooth_rewards_thompson], ['E-greedy 0.1', 'Thompson'], 'Time',
                             'Reward', 'Learning Curve', 'greedy_thompspn.png')
-        #avg_egreedy.append(np.mean(smooth_rewards, axis=0))
-        #rewards_egreedy.append(smooth_rewards)
 
-    reward_plot.save(name='thompso.png')
+    reward_plot.save(name='thompson.png')
 def experiment():
 
     experiment_boltzman()

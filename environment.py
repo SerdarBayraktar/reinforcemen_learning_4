@@ -136,14 +136,20 @@ class ShortcutEnvironment(Environment):
 
         if not action in self.possible_actions():
             raise ValueError(f'Action ({action}) not in set of possible actions.')
-        if episode == 50:
+
+        if episode == 500:
             s = self.s
             s[9,4] = 'C'
             self.s = s
-        # after episode 500 environment updates.
-        if episode == 300:
+        if episode == 600:
             s = self.s
-            s[9,4] = 'X'
+            s[9,4] = 'C'
+            s[9, 5] = 'X'
+            self.s = s
+        if episode == 700:
+            s = self.s
+            s[9,5] = 'C'
+            s[9, 6] = 'X'
             self.s = s
 
         if action == 0:
