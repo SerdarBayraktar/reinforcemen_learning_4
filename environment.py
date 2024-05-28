@@ -1,151 +1,175 @@
-
+import random
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle,Circle,Arrow
 
-class WindyGridworld:
-    ''' Implementation of Example 6.5 at page 130 of Sutton & Barto '''
 
-    def __init__(self, wind_proportion=0.95, default_reward_per_timestep=-1.0):
-        self.height = 7
-        self.width = 10
-        self.shape = (self.width, self.height)
-        self.n_states = self.height * self.width
-        self.n_actions = 4
-        self.winds = (0, 0, 0, 1, 1, 1, 2, 2, 1, 0)
-        self.wind_proportion = wind_proportion
-        self.default_reward_per_timestep = default_reward_per_timestep
+class BanditEnvironment:
 
-        self.action_effects = {
-            0: (0, 1),  # up
-            1: (1, 0),  # right
-            2: (0, -1),  # down
-            3: (-1, 0),  # left
-        }
-        self.fig = None
-        self.Q_labels = None
-        self.arrows = None
+    def __init__(self, n_actions):
+        ''' Initializes a bandit environment'''
+        self.n_actions = n_actions
+        self.means = np.random.uniform(low=0.0, high=1.0, size=n_actions)
+        # self.means = np.random.normal(loc=0.0,scale=1.0,size=n_actions) # alternative bandit definitions are possible
+        self.best_action = np.argmax(self.means)
+        self.best_average_return = np.max(self.means)
 
+    def act(self, a):
+        ''' returns a sampled reward for action a '''
+        r = np.random.binomial(1, self.means[a])
+        # r= np.random.normal(loc=self.means[a],scale=1.0) # alternative bandit definitions are possible
+        return r
+
+
+class Environment(object):
+
+    def __init__(self):
+        pass
+
+    def reset(self,episode):
+        '''Reset the environment.
+
+        Returns:
+           starting_position: Starting position of the agent.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+    def render(self):
+        '''Render environment to screen.'''
+        raise Exception("Must be implemented by subclass.")
+
+    def step(self, action):
+        '''Take action.
+
+        Arguments:
+           action: action to take.
+
+        Returns:
+           reward: reward of action taken.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+    def possible_actions(self):
+        '''Return list of possible actions in current state.
+
+        Returns:
+          actions: list of possible actions.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+    def state(self):
+        '''Return current state.
+
+        Returns:
+          state: environment-specific representation of current state.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+    def state_size(self):
+        '''Return the number of elements of the state space.
+
+        Returns:
+          state_size: number of elements of the state space.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+    def action_size(self):
+        '''Return the number of elements of the action space.
+
+        Returns:
+          state_size: number of elements of the action space.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+    def done(self):
+        '''Return whether current episode is finished and environment should be reset.
+
+        Returns:
+          done: True if current episode is finished.
+        '''
+        raise Exception("Must be implemented by subclass.")
+
+
+class ShortcutEnvironment(Environment):
+    def __init__(self, seed=None):
+        self.r = 12
+        self.c = 12
+        self.rng = random.Random(seed)
+        s = np.zeros((self.r, self.c + 1), dtype=str)
+        s[:] = 'X'
+        s[:, -1] = '\n'
+        s[self.r // 3:, self.c // 3:2 * self.c // 3] = 'C'
+        s[5 * self.r // 6 - 1, :self.c // 2] = 'X'
+        s[2 * self.r // 3:5 * self.r // 6:, self.c // 2] = 'X'
+        s[2 * self.r // 3, self.c // 2:2 * self.c // 3] = 'X'
+        s[2 * self.r // 3, 2 * self.c // 3] = 'G'
+        self.s = s
         self.reset()
 
-    def state_to_location(self, state):
-        ''' bring a state index to an (x,y) location of the agent '''
-        return np.unravel_index(state, self.shape)
-
-    def location_to_state(self, location):
-        ''' bring an (x,y) location of the agent to a state index '''
-        return np.ravel_multi_index(location, self.shape)
-
     def reset(self):
-        ''' set the agent back to the start location '''
-        self.location = np.array([0, 3])
-        s = self.location_to_state(self.location)
-        return s
-
-    def step(self, a):
-        ''' Forward the environment based on action a
-        Returns the next state, the obtained reward, and a boolean whether the environment terminated '''
-        # Move the agent
-        self.location += self.action_effects[a]  # effect of action
-        self.location = np.clip(self.location, (0, 0), np.array(self.shape) - 1)  # bound within grid
-        if np.random.uniform() < self.wind_proportion:  # Apply wind with a certain proportion
-            self.location[1] += self.winds[self.location[0]]  # effect of wind
-            self.location = np.clip(self.location, (0, 0), np.array(self.shape) - 1)  # bound within grid
-        s_next = self.location_to_state(self.location)
-
-        # Check reward and termination
-        if np.all(self.location == (7, 3)):
-            done = True
-            r = 100
-        #        elif np.all(self.location == (2,0)):  # uncomment this if you want to add another goal with a certain reward
-        #            done = True
-        #            r = 10
+        self.x = self.c // 6
+        rand_number = int(2 * self.rng.random())
+        if rand_number:
+            self.y = 5 * self.r // 6 - 1
         else:
-            done = False
-            r = self.default_reward_per_timestep
+            self.y = self.r // 6
+        self.starty = self.y
+        self.isdone = False
+        return rand_number
 
-        return s_next, r, done
+    def state(self):
+        return self.y * self.c + self.x
 
-    def render(self, Q_sa=None, plot_optimal_policy=False, step_pause=0.001):
-        ''' Plot the environment
-        if Q_sa is provided, it will also plot the Q(s,a) values for each action in each state
-        if plot_optimal_policy=True, it will additionally add an arrow in each state to indicate the greedy action '''
-        # Initialize figure
-        if self.fig == None:
-            self._initialize_plot()
+    def state_size(self):
+        return self.c * self.r
 
-        # Add Q-values to plot
-        if Q_sa is not None:
-            # Initialize labels
-            if self.Q_labels is None:
-                self._initialize_Q_labels()
-            # Set correct values of labels
-            for state in range(self.n_states):
-                for action in range(self.n_actions):
-                    self.Q_labels[state][action].set_text(np.round(Q_sa[state, action], 1))
+    def action_size(self):
+        return 4
 
-        # Add arrows of optimal policy
-        if plot_optimal_policy and Q_sa is not None:
-            self._plot_arrows(Q_sa)
+    def done(self):
+        return self.isdone
 
-        # Update agent location
-        self.agent_circle.center = self.location + 0.5
+    def possible_actions(self):
+        return [0, 1, 2, 3]
 
-        # Draw figure
-        plt.pause(step_pause)
+    def step(self, action,episode):
+        if self.isdone:
+            raise ValueError('Environment has to be reset.')
 
-    def _initialize_plot(self):
-        self.fig, self.ax = plt.subplots()  # figsize=(self.width, self.height+1)) # Start a new figure
-        self.ax.set_xlim([0, self.width])
-        self.ax.set_ylim([0, self.height])
-        self.ax.axes.xaxis.set_visible(False)
-        self.ax.axes.yaxis.set_visible(False)
+        if not action in self.possible_actions():
+            raise ValueError(f'Action ({action}) not in set of possible actions.')
+        if episode == 50:
+            s = self.s
+            s[9,4] = 'C'
+            self.s = s
+        # after episode 500 environment updates.
+        if episode == 300:
+            s = self.s
+            s[9,4] = 'X'
+            self.s = s
 
-        for x in range(self.width):
-            for y in range(self.height):
-                self.ax.add_patch(Rectangle((x, y), 1, 1, linewidth=0, facecolor='k', alpha=self.winds[x] / 4))
-                self.ax.add_patch(Rectangle((x, y), 1, 1, linewidth=0.5, edgecolor='k', fill=False))
+        if action == 0:
+            if self.y > 0:
+                self.y -= 1
+        elif action == 1:
+            if self.y < self.r - 1:
+                self.y += 1
+        elif action == 2:
+            if self.x > 0:
+                self.x -= 1
+        elif action == 3:
+            if self.x < self.c - 1:
+                self.x += 1
 
-        self.ax.axvline(0, 0, self.height, linewidth=5, c='k')
-        self.ax.axvline(self.width, 0, self.height, linewidth=5, c='k')
-        self.ax.axhline(0, 0, self.width, linewidth=5, c='k')
-        self.ax.axhline(self.height, 0, self.width, linewidth=5, c='k')
+        if self.s[self.y, self.x] == 'G':  # Goal reached
+            self.isdone = True
+            return -1
+        elif self.s[self.y, self.x] == 'C':  # Fall off cliff
+            self.x = self.c // 6
+            self.y = self.starty
+            return -100
+        return -1
 
-        # Indicate start and goal state
-        self.ax.add_patch(Rectangle((0.0, 3.0), 1.0, 1.0, linewidth=0, facecolor='r', alpha=0.2))
-        self.ax.add_patch(Rectangle((7.0, 3.0), 1.0, 1.0, linewidth=0, facecolor='g', alpha=0.2))
-        self.ax.text(0.05, 3.75, 'S', fontsize=20, c='r')
-        self.ax.text(7.05, 3.75, 'G', fontsize=20, c='g')
+    def render(self):
+        s = self.s.copy()
+        s[self.y, self.x] = 'p'
+        print(s.tobytes().decode('utf-8'))
 
-        # Add agent
-        self.agent_circle = Circle(self.location + 0.5, 0.3)
-        self.ax.add_patch(self.agent_circle)
-
-    def _initialize_Q_labels(self):
-        self.Q_labels = []
-        for state in range(self.n_states):
-            state_location = self.state_to_location(state)
-            self.Q_labels.append([])
-            for action in range(self.n_actions):
-                plot_location = np.array(state_location) + 0.42 + 0.35 * np.array(self.action_effects[action])
-                next_label = self.ax.text(plot_location[0], plot_location[1] + 0.03, 0.0, fontsize=8)
-                self.Q_labels[state].append(next_label)
-
-    def _plot_arrows(self, Q_sa):
-        if self.arrows is not None:
-            for arrow in self.arrows:
-                arrow.remove()  # Clear all previous arrows
-        self.arrows = []
-        for state in range(self.n_states):
-            plot_location = np.array(self.state_to_location(state)) + 0.5
-            max_actions = full_argmax(Q_sa[state])
-            for max_action in max_actions:
-                new_arrow = arrow = Arrow(plot_location[0], plot_location[1], self.action_effects[max_action][0] * 0.2,
-                                          self.action_effects[max_action][1] * 0.2, width=0.05, color='k')
-                ax_arrow = self.ax.add_patch(new_arrow)
-                self.arrows.append(ax_arrow)
-
-
-def full_argmax(x):
-    ''' Own variant of np.argmax, since np.argmax only returns the first occurence of the max '''
-    return np.where(x == np.max(x))[0]
